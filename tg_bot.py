@@ -1,9 +1,11 @@
 import telebot
 import keyboard
 import fsm
+import ai
 
 BOT_TOKEN = '8061819959:AAFPjnBdL7ARh5F8mdxLgGat2gVg0caeUfw'
 stater = fsm.FSM()
+ai_service = ai.AI()
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def handle_default_state(message):
@@ -20,15 +22,22 @@ def handle_image_state(message):
     if message.text == 'В меню':
         return_to_menu(message.chat.id)
     else:
-        # TODO
-        bot.send_message(message.chat.id, text='Генерирую фото...')
+        try:
+            msg = bot.send_message(chat_id=message.chat.id, text='Генерирую...')
+            image_url = ai_service.generate_image(message.text)
+            bot.delete_message(chat_id=message.chat.id, message_id=msg.id)
+            bot.send_photo(chat_id=message.chat.id, caption='Ваше фото:', photo=image_url)
+        except Exception as e:
+            bot.send_message(chat_id=message.chat.id, text=f'Произошла ошибка ({str(e)})')
 
 def handle_text_state(message):
     if message.text == 'В меню':
+        ai_service.clear_dialog(message.chat.id)
         return_to_menu(message.chat.id)
     else:
-        # TODO
-        bot.send_message(message.chat.id, text='Генерирую текст...')
+        msg = bot.send_message(message.chat.id, 'Думаю над запросом...')
+        txt = ai_service.generate_text(message.text, message.chat.id)
+        msg = bot.edit_message_text(text=txt, chat_id=message.chat.id, message_id=msg.id)
 
 def return_to_menu(chat_id):
     stater.set_state(chat_id, fsm.DEFAULT_STATE)
